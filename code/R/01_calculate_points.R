@@ -1,5 +1,6 @@
 
 pacman::p_load(tidyverse,
+               slider,
                Lahman)
 
 batting_with_points <- Batting %>% 
@@ -35,17 +36,19 @@ batting_with_points <- Batting %>%
   select(playerID, nameFirst, nameLast, everything()) %>% 
   group_by(playerID, yearID) %>% 
   mutate(
-    across(G:Points, ~ sum(., na.rm = T))
+    Age = yearID - birthYear,
+    across(G:Points, ~ sum(., na.rm = T)),
   ) %>% 
   distinct() %>% 
   ungroup() %>% 
+  group_by(playerID) %>% 
+  arrange(yearID) %>% 
+  mutate(
+    season_number = row_number(yearID)
+  ) %>% 
   glimpse()
 
 write_csv(Batting, "data/raw/Batting.csv")
 write_csv(Master, "data/raw/Master.csv")
 write_csv(batting_with_points, "data/intermediate/batting_with_points_calculated.csv")  
-  
-  
-  
-  
   
