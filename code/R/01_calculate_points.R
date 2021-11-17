@@ -7,6 +7,10 @@ batting_with_points <- Batting %>%
   transmute(
     playerID,
     yearID,
+    teamID,
+    Era = cut(yearID, 
+              breaks = c(1800, 1900, 1919, 1941, 1960, 1976, 1993, 2100),
+              labels = c("19th Century", "Dead Ball", "Lively Ball", "Integration", "Expansion", "Free Agency", "Long Ball")),
     G,
     AB,
     Hits = H,
@@ -27,7 +31,7 @@ batting_with_points <- Batting %>%
              (.5 * TB) + RBI + (1.5 * BB) + (-1 * K) + HBP + (.5 * Sacrifices) + (2 * SB) +
              (-1 * CS)
   ) %>% 
-  left_join(., Master %>% select(playerID, nameFirst, nameLast), by = "playerID") %>% 
+  left_join(., Master %>% select(playerID, nameFirst, nameLast, birthYear, birthMonth, birthCountry, birthState, birthCity, weight, height, bats, throws), by = "playerID") %>% 
   select(playerID, nameFirst, nameLast, everything()) %>% 
   group_by(playerID, yearID) %>% 
   mutate(
