@@ -49,6 +49,56 @@ stats_to_plot <- df_2000_onward %>%
   select(Hits:CS) %>% 
   names()
 
+ggplot(data = df, aes(x = Points)) +
+  geom_density() +
+  facet_wrap(~ Era, scales = "free_x") +
+  theme_bw()
+
+ggplot(data = df, aes(x = Era, y = Points)) +
+  geom_boxplot() +
+  theme_minimal()
+
+ggplot(data = df, aes(x = birthCountry, y = Points)) +
+  geom_boxplot() +
+  theme_minimal() +
+  coord_flip()
+
+ggplot(data = df, aes(x = birthState, y = Points)) +
+  geom_boxplot() +
+  theme_minimal() +
+  coord_flip()
+
+ggplot(data = df, aes(x = factor(birthMonth), y = Points)) +
+  geom_boxplot() +
+  theme_bw() +
+  facet_wrap(~ Era) +
+  coord_flip()
+
+ggplot(data = df, aes(x = weight, y = Points)) +
+  geom_point() +
+  theme_minimal() +
+  facet_wrap(~ Era)
+
+ggplot(data = df, aes(x = height, y = Points)) +
+  geom_point() +
+  theme_minimal() +
+  facet_wrap(~ Era)
+
+ggplot(data = df, aes(x = bats, y = Points)) +
+  geom_boxplot() +
+  theme_minimal()
+
+ggplot(data = df, aes(x = throws, y = Points)) +
+  geom_boxplot() +
+  theme_minimal()
+
+ggplot(data = df, aes(x = Age, y = Points)) +
+  geom_point(alpha = .2) +
+  theme_minimal()
+
+ggplot(data = df, aes(x = season_number, y = Points)) +
+  geom_point(alpha = .2) +
+  theme_minimal()
 
 # Summary Stats by Statistic ----------------------------------------------
 
