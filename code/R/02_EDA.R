@@ -1,6 +1,5 @@
 
-pacman::p_load(tidyverse,
-               slider)
+pacman::p_load(tidyverse)
 
 df <- read_csv("data/intermediate/batting_with_points_calculated.csv") %>% 
   glimpse()
