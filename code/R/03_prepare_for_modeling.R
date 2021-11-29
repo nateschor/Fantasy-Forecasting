@@ -5,7 +5,23 @@ df <- read_csv("data/intermediate/batting_with_points_calculated.csv") %>%
   glimpse()
 
 df_filtered <- df %>% 
-  filter(Era %in% c("Expansion", "Free Agency", "Long Ball"))
+  filter(Era %in% c("Expansion", "Free Agency", "Long Ball")) %>% 
+  mutate(
+    birthMonth = case_when(
+      birthMonth == 1 ~ "Jan",
+      birthMonth == 2 ~ "Feb",
+      birthMonth == 3 ~ "Mar",
+      birthMonth == 4 ~ "Apr",
+      birthMonth == 5 ~ "May",
+      birthMonth == 6 ~ "Jun",
+      birthMonth == 7 ~ "Jul",
+      birthMonth == 8 ~ "Aug",
+      birthMonth == 9 ~ "Sep",
+      birthMonth == 10 ~ "Oct",
+      birthMonth == 11 ~ "Nov",
+      birthMonth == 12 ~ "Dec",
+    )
+  )
 
 df_filtered %>% 
   filter(Era == "Long Ball") %>% 
@@ -86,7 +102,7 @@ test_normalized <- test_df %>%
 
 write_csv(training_normalized, str_glue("data/intermediate/training_normalized_{TRAINING_RANGE}.csv"))
 write_csv(validation_normalized, str_glue("data/intermediate/validation_normalized_{VALIDATION_RANGE}.csv"))
-write_csv(test_normalized, str_glue("data/intermediate/training_normalized_{TEST_RANGE}.csv"))
+write_csv(test_normalized, str_glue("data/intermediate/test_normalized_{TEST_RANGE}.csv"))
 
 
 
