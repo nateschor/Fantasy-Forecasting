@@ -1,5 +1,6 @@
 
-pacman::p_load(tidyverse)
+pacman::p_load(tidyverse,
+               slider)
 
 df <- read_csv("data/intermediate/batting_with_points_calculated.csv") %>% 
   glimpse()
@@ -22,6 +23,46 @@ df_filtered <- df %>%
       birthMonth == 12 ~ "Dec",
     )
   )
+
+df_filtered <- df_filtered %>% 
+  group_by(playerID) %>% 
+  arrange(playerID, yearID) %>%
+  mutate(
+    Points_last_season = slide(.x = Points, .f = ~ .x, .before = 1),
+    Points_2_season = slide(.x = Points, .f = ~ .x, .before = 2),
+    Points_3_season = slide(.x = Points, .f = ~ .x, .before = 3)
+  ) 
+
+Extract_Value <- function(Points_column, obs_number, index) {
+  
+  lagged_points <- df_filtered %>% 
+    pull(Points_column)
+    
+  row_of_interest <- lagged_points %>% 
+    pluck(obs_number)
+  
+  row_of_interest[index]
+  
+}
+
+
+last_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_last_season", .x, 1))
+last_2_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_2_season", .x, 1))
+last_3_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_3_season", .x, 1))
+
+df_filtered$Points_last_season <- last_season_points
+df_filtered$Points_2_season <- last_2_season_points
+df_filtered$Points_3_season <- last_3_season_points
+
+df_filtered <- df_filtered %>% 
+  mutate(
+   season_count = row_number(),
+   Points_last_season = if_else(season_count == 1, NA_real_, Points_last_season),
+   Points_2_season = if_else(season_count %in% 1:2, NA_real_, Points_2_season),
+   Points_3_season = if_else(season_count %in% 1:3, NA_real_, Points_3_season)
+  ) %>% 
+  select(-season_count) %>% 
+  ungroup()
 
 df_filtered %>% 
   filter(Era == "Long Ball") %>% 
