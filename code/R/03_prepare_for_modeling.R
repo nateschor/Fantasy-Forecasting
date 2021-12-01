@@ -57,9 +57,9 @@ df_filtered$Points_3_season <- last_3_season_points
 df_filtered <- df_filtered %>% 
   mutate(
    season_count = row_number(),
-   Points_last_season = if_else(season_count == 1, NA_real_, Points_last_season),
-   Points_2_season = if_else(season_count %in% 1:2, NA_real_, Points_2_season),
-   Points_3_season = if_else(season_count %in% 1:3, NA_real_, Points_3_season)
+   Points_last_season = if_else(season_count == 1, 0, Points_last_season),
+   Points_2_season = if_else(season_count %in% 1:2, 0, Points_2_season),
+   Points_3_season = if_else(season_count %in% 1:3, 0, Points_3_season)
   ) %>% 
   select(-season_count) %>% 
   ungroup()
