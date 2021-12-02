@@ -114,7 +114,10 @@ training_normalized_vars <- map_dfc(vars_to_normalize,
 
 training_normalized <- train_df %>% 
   select(-vars_to_normalize) %>% 
-  bind_cols(., training_normalized_vars)
+  bind_cols(., training_normalized_vars) %>% 
+  mutate(
+    across(everything(), ~ !is.na(.))
+  )
 
 
 # Validation --------------------------------------------------------------
