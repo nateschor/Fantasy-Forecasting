@@ -6,7 +6,6 @@ df <- read_csv("data/intermediate/batting_with_points_calculated.csv") %>%
   glimpse()
 
 df_filtered <- df %>% 
-  filter(Era %in% c("Expansion", "Free Agency", "Long Ball")) %>% 
   mutate(
     birthMonth = case_when(
       birthMonth == 1 ~ "Jan",
@@ -72,7 +71,7 @@ df_filtered %>%
 
 # Train/Val/Test -----------------------------------------------------------
 
-TRAIN_YEARS <- 1961:2010
+TRAIN_YEARS <- 1871:2010
 VALIDATION_YEARS <- 2011:2016
 TEST_YEARS <- 2017:2019
 
@@ -141,9 +140,9 @@ test_normalized <- test_df %>%
 
 # Saving ------------------------------------------------------------------
 
-write_csv(training_normalized, str_glue("data/intermediate/training_normalized_{TRAINING_RANGE}.csv"))
-write_csv(validation_normalized, str_glue("data/intermediate/validation_normalized_{VALIDATION_RANGE}.csv"))
-write_csv(test_normalized, str_glue("data/intermediate/test_normalized_{TEST_RANGE}.csv"))
+write_csv(training_normalized, str_glue("data/intermediate/all_data_training_normalized_{TRAINING_RANGE}.csv"))
+write_csv(validation_normalized, str_glue("data/intermediate/all_datavalidation_normalized_{VALIDATION_RANGE}.csv"))
+write_csv(test_normalized, str_glue("data/intermediate/all_datatest_normalized_{TEST_RANGE}.csv"))
 
 
 
