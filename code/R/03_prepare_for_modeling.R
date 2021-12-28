@@ -26,132 +26,58 @@ df_filtered <- df %>%
 
 df_filtered <- df_filtered %>% 
   group_by(playerID) %>% 
-  arrange(playerID, yearID) %>%
-  mutate(
-    Points_last_season = slide(.x = Points, .f = ~ .x, .before = 1),
-    Points_2_season = slide(.x = Points, .f = ~ .x, .before = 2),
-    Points_3_season = slide(.x = Points, .f = ~ .x, .before = 3),
-    Points_4_season = slide(.x = Points, .f = ~ .x, .before = 4),
-    Points_5_season = slide(.x = Points, .f = ~ .x, .before = 5)
-  ) 
+  arrange(playerID, yearID)
 
-Extract_Value <- function(Points_column, obs_number, index) {
+Create_Stat_Lag <- function(stat, year) {
   
-  lagged_points <- df_filtered %>% 
-    pull(Points_column)
-    
-  row_of_interest <- lagged_points %>% 
-    pluck(obs_number)
-  
-  row_of_interest[index]
-  
+  df_filtered %>% 
+    mutate(lagged_val = slide(.x = .data[[stat]], .f = ~ .x, .before = year)
+  ) %>% 
+    pull("lagged_val") %>% 
+    map_dbl(., ~ pluck(., 1))
 }
 
+vars_to_lag <- df_filtered %>% 
+  ungroup() %>% 
+  select(Hits:Points) %>% 
+  names()
 
-last_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_last_season", .x, 1))
-last_2_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_2_season", .x, 1))
-last_3_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_3_season", .x, 1))
-last_4_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_4_season", .x, 1))
-last_5_season_points <- map_dbl(1:nrow(df_filtered), ~ Extract_Value("Points_5_season", .x, 1))
+num_lags <- 1:5
 
-df_filtered$Points_last_season <- last_season_points
-df_filtered$Points_2_season <- last_2_season_points
-df_filtered$Points_3_season <- last_3_season_points
-df_filtered$Points_4_season <- last_4_season_points
-df_filtered$Points_5_season <- last_5_season_points
-
-
-df_filtered <- df_filtered %>% 
+lags_table <- expand_grid(vars_to_lag, num_lags) %>% 
   mutate(
-   season_count = row_number(),
-   Points_last_season = if_else(season_count == 1, 0, Points_last_season),
-   Points_2_season = if_else(season_count %in% 1:2, 0, Points_2_season),
-   Points_3_season = if_else(season_count %in% 1:3, 0, Points_3_season),
-   Points_4_season = if_else(season_count %in% 1:4, 0, Points_2_season),
-   Points_5_season = if_else(season_count %in% 1:5, 0, Points_3_season)
+    var_lags = paste(vars_to_lag, num_lags, sep = "_")
+  )
+
+lagged_vars <- map2_dfc(lags_table$vars_to_lag, lags_table$num_lags, function(x, y) {
+  print(str_glue("{x} lagged {y}"))
+  Create_Stat_Lag(x, y)
+})
+
+lagged_vars <- lagged_vars %>% 
+  set_names(., lags_table$var_lags)
+
+df_lagged <- bind_cols(df_filtered, lagged_vars) %>% 
+  ungroup() %>% 
+  group_by(playerID) %>% 
+  arrange(playerID, yearID) %>% 
+  mutate(
+    season_number = row_number(yearID),
+    across(contains("_1"), ~ if_else(season_number == 1, 0, .)),
+    across(contains("_2"), ~ if_else(season_number %in% 1:2, 0, .)),
+    across(contains("_3"), ~ if_else(season_number %in% 1:3, 0, .)),
+    across(contains("_4"), ~ if_else(season_number %in% 1:4, 0, .)),
+    across(contains("_5"), ~ if_else(season_number %in% 1:5, 0, .))
   ) %>% 
-  select(-season_count) %>% 
   ungroup()
 
-df_filtered %>% 
-  filter(Era == "Long Ball") %>% 
-  pull(yearID) %>% 
-  table()
-
-
-# Train/Val/Test -----------------------------------------------------------
+write_csv(df_lagged, "data/intermediate/all_stats_5_year_lag.csv")
 
 TRAIN_YEARS <- 1961:2010
 VALIDATION_YEARS <- 2011:2016
 TEST_YEARS <- 2017:2019
 
-TRAINING_RANGE <- paste(TRAIN_YEARS[1], TRAIN_YEARS[(length(TRAIN_YEARS))], sep = "_to_")
-VALIDATION_RANGE <- paste(VALIDATION_YEARS[1], VALIDATION_YEARS[(length(VALIDATION_YEARS))], sep = "_to_")
-TEST_RANGE <- paste(TEST_YEARS[1], TEST_YEARS[(length(TEST_YEARS))], sep = "_to_")
 
-train_df <- df_filtered %>% 
-  filter(yearID %in% TRAIN_YEARS)
-
-validation_df <- df_filtered %>% 
-  filter(yearID %in% VALIDATION_YEARS)
-
-test_df <- df_filtered %>% 
-  filter(yearID %in% TEST_YEARS)
-
-Perform_Variable_Min_Max_Normalization <- function(training_dataset, dataset_to_normalize, variable) {
-  
-  training_var <- training_dataset %>% 
-    pull(variable)
-  
-  training_min_val <- min(training_var, na.rm = T)
-  training_max_val <- max(training_var, na.rm = T)
-  
-  var_of_interest <- dataset_to_normalize %>% 
-    pull(variable)
-  
-  (scaled_var <- (var_of_interest - training_min_val) / (training_max_val - training_min_val))
-  
-}
-
-vars_to_normalize <- c("birthYear", "weight", "height", "Age")
-
-
-# Training ----------------------------------------------------------------
-
-training_normalized_vars <- map_dfc(vars_to_normalize, 
-                                    ~ Perform_Variable_Min_Max_Normalization(train_df, train_df, .)) %>% 
-  set_names(., vars_to_normalize)
-
-training_normalized <- train_df %>% 
-  select(-vars_to_normalize) %>% 
-  bind_cols(., training_normalized_vars)
-
-# Validation --------------------------------------------------------------
-
-validation_normalized_vars <- map_dfc(vars_to_normalize, 
-                                    ~ Perform_Variable_Min_Max_Normalization(train_df, validation_df, .)) %>% 
-  set_names(., vars_to_normalize)
-
-validation_normalized <- validation_df %>% 
-  select(-vars_to_normalize) %>% 
-  bind_cols(., validation_normalized_vars)
-
-# Test --------------------------------------------------------------
-
-test_normalized_vars <- map_dfc(vars_to_normalize, 
-                                      ~ Perform_Variable_Min_Max_Normalization(train_df, test_df, .)) %>% 
-  set_names(., vars_to_normalize)
-
-test_normalized <- test_df %>% 
-  select(-vars_to_normalize) %>% 
-  bind_cols(., test_normalized_vars)
-
-
-# Saving ------------------------------------------------------------------
-
-write_csv(training_normalized, str_glue("data/intermediate/5_lags_data_training_normalized_{TRAINING_RANGE}.csv"))
-write_csv(validation_normalized, str_glue("data/intermediate/5_lags_datavalidation_normalized_{VALIDATION_RANGE}.csv"))
-write_csv(test_normalized, str_glue("data/intermediate/5_lags_datatest_normalized_{TEST_RANGE}.csv"))
 
 
 
