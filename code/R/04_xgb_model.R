@@ -30,8 +30,8 @@ xgboost_recipe <-
   recipe(formula = model_formula, data = df_training) 
 
 xgboost_spec <- 
-  boost_tree(trees = tune(), min_n = tune(), tree_depth = tune(), learn_rate = tune(), 
-             loss_reduction = tune(), sample_size = tune()) %>% 
+  boost_tree(trees = 1000, min_n = tune(), tree_depth = tune(), learn_rate = tune(), 
+             loss_reduction = tune(), sample_size = tune(), mtry = tune(), stop_iter = tune()) %>% 
   set_mode("regression") %>% 
   set_engine("xgboost") 
 
@@ -41,12 +41,24 @@ xgboost_workflow <-
   add_model(xgboost_spec) 
 
 xgboost_grid <- 
-  dials::grid_max_entropy(
-    xgboost_spec, 
-    size = 60
+  grid_latin_hypercube(
+    tree_depth(),
+    min_n(),
+    loss_reduction(),
+    sample_size = sample_prop(),
+    finalize(mtry(), cv_data),
+    learn_rate(),
+    stop_iter(),
+    size = 15
   )
 
 set.seed(5321)
 xgboost_tune <-
-  tune_grid(xgboost_workflow, resamples = cv_data, grid = xgboost_grid, metric = rmse))
+  tune_grid(xgboost_workflow, 
+            resamples = cv_data, 
+            grid = xgboost_grid, 
+            control = control_grid(save_pred = TRUE))
 
+saveRDS(xgboost_tune, file = "data/xgb.rds")
+ex <- readRDS("data/xgb.rds")
+show_best(xgboost_tune, metric = "rmse")
