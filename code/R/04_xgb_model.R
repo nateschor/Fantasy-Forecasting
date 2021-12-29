@@ -1,6 +1,7 @@
 
 pacman::p_load(tidyverse,
-               tidymodels)
+               tidymodels,
+               ggrepel)
 
 df <- read_csv("data/intermediate/all_stats_5_year_lag.csv")
 
@@ -23,6 +24,8 @@ model_formula <- df_training %>%
   reformulate(., response = "Points")
 
 set.seed(1234)
+
+# make sure players aren't getting their seasons split across folds
 
 cv_data <- vfold_cv(df_training, v = 5)
 
@@ -60,5 +63,67 @@ xgboost_tune <-
             control = control_grid(save_pred = TRUE))
 
 saveRDS(xgboost_tune, file = "data/xgb.rds")
-ex <- readRDS("data/xgb.rds")
-show_best(xgboost_tune, metric = "rmse")
+xgb_model <- readRDS("data/xgb.rds")
+
+best_rmse <- select_best(xgb_model, metric = "rmse")
+
+xgb_final_spec <- boost_tree(
+  trees = 1000,
+  tree_depth = tune(),
+  min_n = tune(),
+  loss_reduction = tune(),
+  sample_size = tune(),
+  mtry = tune(),
+  learn_rate = tune(),
+  stop_iter = tune()
+  ) %>% 
+  set_mode("regression") %>% 
+  set_engine("xgboost") 
+
+xgb_final_wf <- workflow() %>% 
+  add_formula(model_formula) %>% 
+  add_model(xgb_final_spec)
+
+final_xgb <- finalize_workflow(
+  xgb_final_wf,
+  best_rmse
+)
+
+fit_xgb <- final_xgb %>% 
+  fit(data = df_training)
+
+df_test_preds <- df_test %>% 
+  mutate(
+    fitted_val = predict(fit_xgb, df_test) %>% pull(.pred),
+    residual = Points - fitted_val
+  )
+
+rmse_vec(df_test_preds$Points, df_test_preds$fitted_val)
+# 115.6095
+
+ggplot(data = df_test_preds, aes(x = Points, y = residual)) +
+  geom_point() +
+  geom_hline(yintercept = 0, color = "red") +
+  theme_minimal()
+
+ggplot(data = df_test_preds, aes(x = Points, y = fitted_val)) +
+  geom_point() +
+  geom_vline(xintercept = 500, color = "red", linetype = "dashed") +
+  geom_hline(yintercept = 500, color = "red", linetype = "dashed") +
+  geom_abline(intercept = 0, slope = 1, color = "blue") +
+  geom_text_repel(data = df_test_preds %>% filter(Points >= 750, fitted_val < 500), aes(label = paste(nameFirst, nameLast, yearID))) +
+  theme_minimal() +
+  labs(y = "Fitted Value",
+       title = "XGBoost",
+       caption = "Trained on 1961-2016\nTested on 2017-2019")
+
+ggplot(data = df_test_preds, aes(x = Points, y = fitted_val)) +
+  geom_point() +
+  geom_vline(xintercept = 500, color = "red", linetype = "dashed") +
+  geom_hline(yintercept = 500, color = "red", linetype = "dashed") +
+  geom_abline(intercept = 0, slope = 1, color = "blue") +
+  geom_text_repel(data = df_test_preds %>% filter(Points >= 750, fitted_val >= 750), aes(label = paste(nameFirst, nameLast, yearID))) +
+  theme_minimal() +
+  labs(y = "Fitted Value",
+       title = "XGBoost",
+       caption = "Trained on 1961-2016\nTested on 2017-2019")
